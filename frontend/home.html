@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="nav-links">
+            <a href="/home" aria-current="page">Home</a>
+            <a href="/profile">Profile Detail</a>
+        </div>
+        <button id="logout-button" class="logout-button" type="button">Logout</button>
+    </nav>
+    <main class="profile-page">
+        <h1>Welcome</h1>
+        <p>Your account information:</p>
+        <dl class="profile-details">
+            <div>
+                <dt>Email</dt>
+                <dd id="user-email"></dd>
+            </div>
+            <div>
+                <dt>Name</dt>
+                <dd id="user-name">Not set</dd>
+            </div>
+        </dl>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <p><a href="/profile">View or update your profile</a></p>
+    </main>
+</body>
+</html>
