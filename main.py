@@ -5,7 +5,7 @@ from pathlib import Path
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, FastAPI, HTTPException, status
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from configrations import (
@@ -31,38 +31,22 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Authentication and Profile Management API", lifespan=lifespan)
-frontend_directory = Path(__file__).parent / "frontend"
-app.mount(
-    "/static",
-    StaticFiles(directory=str(frontend_directory)),
-    name="static",
-)
+react_directory = Path(__file__).parent / "frontend-react" / "dist"
+react_assets_directory = react_directory / "assets"
+
+if react_assets_directory.is_dir():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(react_assets_directory)),
+        name="react-assets",
+    )
+
 todo_router = APIRouter(prefix="/api/todos", tags=["todos"])
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse("/login")
-
-
-@app.get("/login", include_in_schema=False)
-async def login_page():
-    return FileResponse(frontend_directory / "login.html")
-
-
-@app.get("/register", include_in_schema=False)
-async def register_page():
-    return FileResponse(frontend_directory / "register.html")
-
-
-@app.get("/home", include_in_schema=False)
-async def home_page():
-    return FileResponse(frontend_directory / "home.html")
-
-
-@app.get("/profile", include_in_schema=False)
-async def profile_page():
-    return FileResponse(frontend_directory / "profile.html")
+    return FileResponse(react_directory / "index.html")
 
 
 @todo_router.get("/")
@@ -115,3 +99,21 @@ async def delete_task(task_id: str):
 app.include_router(todo_router)
 app.include_router(auth_router)
 app.include_router(profile_router)
+
+
+@app.get("/{frontend_path:path}", include_in_schema=False)
+async def react_fallback(frontend_path: str):
+    if frontend_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+
+    candidate_file = react_directory / frontend_path
+    if candidate_file.is_file():
+        return FileResponse(candidate_file)
+
+    index_file = react_directory / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+    raise HTTPException(
+        status_code=503,
+        detail="React build is missing. Run npm run build in frontend-react.",
+    )

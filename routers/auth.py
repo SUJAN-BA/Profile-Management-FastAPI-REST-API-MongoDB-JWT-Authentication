@@ -11,7 +11,7 @@ from pwdlib import PasswordHash
 from pymongo.errors import DuplicateKeyError
 
 from configrations import revoked_tokens_collection, users_collection
-from database.auth_models import LoginRequest, RegisterRequest
+from database.auth_models import ChangePasswordRequest, LoginRequest, RegisterRequest
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
@@ -136,6 +136,38 @@ async def login(request: LoginRequest):
 @router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return {"id": current_user["id"], "email": current_user["email"]}
+
+
+@router.put("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    user = users_collection.find_one({"_id": ObjectId(current_user["id"])})
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account no longer exists")
+    if not password_hash.verify(request.current_password, user["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    if password_hash.verify(request.new_password, user["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password": password_hash.hash(request.new_password)}},
+    )
+    revoked_tokens_collection.insert_one(
+        {
+            "jti": current_user["jti"],
+            "expires_at": current_user["expires_at"],
+        }
+    )
+    return {"message": "Password changed successfully"}
 
 
 @router.post("/logout")
